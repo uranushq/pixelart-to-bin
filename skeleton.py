@@ -19,6 +19,7 @@ class TextInput:
     loop: Union[int, float] = infinity
     duration: List[int]
     action: List[Literal['left', 'right', 'up', 'down', 'stay']]
+    loopDelay: int = 0
 
 @dataclass
 class MixedInput:

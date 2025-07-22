@@ -1,4 +1,4 @@
-데이터 폴더 구조
+# 데이터 폴더 구조
 
 ```
 pixelart/
@@ -19,3 +19,7 @@ mixed/
         *.png
         config.json
 ```
+
+# 알고리즘 아키텍처
+
+![PIXELTOBIN 아키](./image/PIXELTOBIN.png)
