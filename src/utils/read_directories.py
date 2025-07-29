@@ -34,7 +34,7 @@ def read_directories_in_directory(directory: str) -> list:
 
 if __name__ == "__main__":
     # Example usage
-    directory_path = r"C:\Users\URANUS\Desktop\baejeongwon\pixeltobin\pixelart-to-bin\data"
+    directory_path = r"./data"
     dirs = read_directories_in_directory(directory_path)
     print("Directories in directory:", dirs)
     files = [read_filenames_in_directory(d) for d in dirs]
