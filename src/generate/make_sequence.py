@@ -26,21 +26,51 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
 def get_image_files_in_directory(directory: str) -> List[str]:
     """
-    Get all image files in a directory sorted by filename.
+    Get all image files in a directory sorted by filename (natural sort for numbers).
+    Excludes visualization and config files.
     
     Args:
         directory: Directory path containing images
         
     Returns:
-        Sorted list of image file paths
+        Sorted list of image file paths (excluding visualization files)
     """
+    import re
+    
+    def natural_sort_key(text):
+        """Convert a string into a list of string and number chunks for natural sorting."""
+        return [int(c) if c.isdigit() else c for c in re.split(r'(\d+)', text)]
+    
     image_extensions = ['*.png', '*.jpg', '*.jpeg', '*.bmp', '*.gif']
     image_files = []
     
     for ext in image_extensions:
         image_files.extend(glob.glob(os.path.join(directory, ext)))
     
-    return sorted(image_files)
+    # Filter out visualization and other non-animation files
+    filtered_files = []
+    for file_path in image_files:
+        filename = os.path.basename(file_path).lower()
+        # Exclude files with these patterns
+        exclude_patterns = [
+            'visualization',  # cluster visualization files
+            'cluster_vis',    # alternative cluster vis naming
+            'comparison',     # comparison files
+            'config',         # config files (shouldn't be images anyway)
+            'readme',         # readme images
+            'sample',         # sample files
+            'example',        # example files
+        ]
+        
+        # Check if filename contains any exclude patterns
+        should_exclude = any(pattern in filename for pattern in exclude_patterns)
+        
+        if not should_exclude:
+            filtered_files.append(file_path)
+        else:
+            print(f"Excluding file: {os.path.basename(file_path)}")
+    
+    return sorted(filtered_files, key=natural_sort_key)
 
 
 def create_sequence_from_config(directory: str, output_path: str):
@@ -57,33 +87,22 @@ def create_sequence_from_config(directory: str, output_path: str):
     
     # Load configuration
     config = load_config(config_path)
-    cluster_config = config['cluster']
-    loop_count = cluster_config.get('loop', 1)
-    loop_delay_ms = cluster_config.get('loopDelay', 1000)
+    loop_count = config.get('loop', 1)
+    loop_delay_ms = config.get('loopDelay', 1000)
     
     # Get all image files
     image_files = get_image_files_in_directory(directory)
     
-    # Create sequence based on clusters
+    # Create sequence from all sorted images
     frames = []
     frame_duration = 0.2  # 0.2 seconds per frame
     
-    # Build cluster sequences
-    cluster_sequences = []
-    for cluster_id in sorted(cluster_config.keys()):
-        if cluster_id in ['loop', 'loopDelay']:
-            continue
-            
-        indices = cluster_config[cluster_id]
-        cluster_frames = []
-        
-        for idx in indices:
-            if idx < len(image_files):
-                img = Image.open(image_files[idx]).convert("RGB")
-                matrix = image_to_matrix(img)
-                cluster_frames.append(matrix)
-        
-        cluster_sequences.extend(cluster_frames)
+    # Build image sequences from all sorted images
+    image_sequences = []
+    for image_file in image_files:
+        img = Image.open(image_file).convert("RGB")
+        matrix = image_to_matrix(img)
+        image_sequences.append(matrix)
     
     # Handle loop settings
     if loop_count == -1:
@@ -95,24 +114,24 @@ def create_sequence_from_config(directory: str, output_path: str):
         if loop_delay_ms > 0:
             delay_frames_per_loop = int((loop_delay_ms / 1000) / frame_duration)
         
-        # Calculate total frames per loop (cluster frames + delay frames)
-        frames_per_loop = len(cluster_sequences) + delay_frames_per_loop
+        # Calculate total frames per loop (image frames + delay frames)
+        frames_per_loop = len(image_sequences) + delay_frames_per_loop
         sequence_duration_per_loop = frames_per_loop * frame_duration
         
         # Calculate how many loops we need for exactly 1 hour
         loops_needed = int(total_duration / sequence_duration_per_loop)
         
         print(f"Creating 1-hour sequence with {loops_needed} loops")
-        print(f"Frames per loop: {frames_per_loop} (cluster: {len(cluster_sequences)}, delay: {delay_frames_per_loop})")
+        print(f"Frames per loop: {frames_per_loop} (images: {len(image_sequences)}, delay: {delay_frames_per_loop})")
         
         for loop_idx in range(loops_needed):
-            frames.extend(cluster_sequences)
+            frames.extend(image_sequences)
             
             # Add delay frames (black frames for loopDelay) - except for the last loop
-            if loop_delay_ms > 0 and delay_frames_per_loop > 0 and cluster_sequences and loop_idx < loops_needed - 1:
+            if loop_delay_ms > 0 and delay_frames_per_loop > 0 and image_sequences and loop_idx < loops_needed - 1:
                 # Create black frame with same dimensions
-                height = len(cluster_sequences[0])
-                width = len(cluster_sequences[0][0])
+                height = len(image_sequences[0])
+                width = len(image_sequences[0][0])
                 black_frame = [[[0, 0, 0] for _ in range(width)] for _ in range(height)]
                 
                 for _ in range(delay_frames_per_loop):
@@ -128,27 +147,27 @@ def create_sequence_from_config(directory: str, output_path: str):
             # Add frames from the beginning of sequence to fill remaining time
             frame_idx = 0
             for _ in range(remaining_frames):
-                if frame_idx < len(cluster_sequences):
-                    frames.append(cluster_sequences[frame_idx])
+                if frame_idx < len(image_sequences):
+                    frames.append(image_sequences[frame_idx])
                     frame_idx += 1
                 else:
                     frame_idx = 0
-                    frames.append(cluster_sequences[frame_idx])
+                    frames.append(image_sequences[frame_idx])
                     frame_idx += 1
     else:
         # Finite loop
         print(f"Creating sequence with {loop_count} loops")
         
         for _ in range(loop_count):
-            frames.extend(cluster_sequences)
+            frames.extend(image_sequences)
             
             # Add delay frames (black frames for loopDelay)
             if loop_delay_ms > 0:
                 delay_frames = int((loop_delay_ms / 1000) / frame_duration)
-                if delay_frames > 0 and cluster_sequences:
+                if delay_frames > 0 and image_sequences:
                     # Create black frame with same dimensions
-                    height = len(cluster_sequences[0])
-                    width = len(cluster_sequences[0][0])
+                    height = len(image_sequences[0])
+                    width = len(image_sequences[0][0])
                     black_frame = [[[0, 0, 0] for _ in range(width)] for _ in range(height)]
                     
                     for _ in range(delay_frames):
