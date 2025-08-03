@@ -87,11 +87,15 @@ def create_sequence_from_config(directory: str, output_path: str):
     
     # Load configuration
     config = load_config(config_path)
-    loop_count = config.get('loop', 1)
+    loop_count = config.get('loop', -1)
     loop_delay_ms = config.get('loopDelay', 1000)
+    countdown_enabled = config.get('countDown', True)
     
     # Get all image files
     image_files = get_image_files_in_directory(directory)
+    print(f"Found {len(image_files)} image files:")
+    for img_file in image_files:
+        print(f"  {os.path.basename(img_file)}")
     
     # Create sequence from all sorted images
     frames = []
@@ -104,6 +108,42 @@ def create_sequence_from_config(directory: str, output_path: str):
         matrix = image_to_matrix(img)
         image_sequences.append(matrix)
     
+    if not image_sequences:
+        print("No images found to process!")
+        return
+    
+    # Get image dimensions for countdown frames
+    image_height = len(image_sequences[0])
+    image_width = len(image_sequences[0][0])
+    
+    def create_countdown_frames():
+        """Create countdown frames: red, yellow, green, black (1 second each)"""
+        countdown_frames = []
+        fps = int(1 / frame_duration)  # 5 FPS
+        frames_per_second = fps
+        
+        # 1 second red frame
+        red_frame = [[[255, 0, 0] for _ in range(image_width)] for _ in range(image_height)]
+        for _ in range(frames_per_second):
+            countdown_frames.append(red_frame)
+        
+        # 1 second yellow frame  
+        yellow_frame = [[[255, 255, 0] for _ in range(image_width)] for _ in range(image_height)]
+        for _ in range(frames_per_second):
+            countdown_frames.append(yellow_frame)
+        
+        # 1 second green frame
+        green_frame = [[[0, 255, 0] for _ in range(image_width)] for _ in range(image_height)]
+        for _ in range(frames_per_second):
+            countdown_frames.append(green_frame)
+        
+        # 1 second black frame
+        black_frame = [[[0, 0, 0] for _ in range(image_width)] for _ in range(image_height)]
+        for _ in range(frames_per_second):
+            countdown_frames.append(black_frame)
+        
+        return countdown_frames
+    
     # Handle loop settings
     if loop_count == -1:
         # Infinite loop for 1 hour (3600 seconds)
@@ -114,25 +154,37 @@ def create_sequence_from_config(directory: str, output_path: str):
         if loop_delay_ms > 0:
             delay_frames_per_loop = int((loop_delay_ms / 1000) / frame_duration)
         
-        # Calculate total frames per loop (image frames + delay frames)
-        frames_per_loop = len(image_sequences) + delay_frames_per_loop
+        # Calculate countdown frames per loop (4 seconds = red + yellow + green + black)
+        countdown_frames_per_loop = 0
+        if countdown_enabled:
+            fps = int(1 / frame_duration)  # 5 FPS
+            countdown_frames_per_loop = 4 * fps  # 4 seconds * 5 FPS = 20 frames
+        
+        # Calculate total frames per loop (countdown + image frames + delay frames)
+        frames_per_loop = countdown_frames_per_loop + len(image_sequences) + delay_frames_per_loop
         sequence_duration_per_loop = frames_per_loop * frame_duration
         
         # Calculate how many loops we need for exactly 1 hour
         loops_needed = int(total_duration / sequence_duration_per_loop)
         
         print(f"Creating 1-hour sequence with {loops_needed} loops")
-        print(f"Frames per loop: {frames_per_loop} (images: {len(image_sequences)}, delay: {delay_frames_per_loop})")
+        print(f"Frames per loop: {frames_per_loop} (countdown: {countdown_frames_per_loop}, images: {len(image_sequences)}, delay: {delay_frames_per_loop})")
+        if countdown_enabled:
+            print("Countdown frames enabled: 4 seconds per loop (red, yellow, green, black)")
         
         for loop_idx in range(loops_needed):
+            # Add countdown frames at the beginning of each loop
+            if countdown_enabled:
+                countdown_frames = create_countdown_frames()
+                frames.extend(countdown_frames)
+            
+            # Add the actual image sequence
             frames.extend(image_sequences)
             
             # Add delay frames (black frames for loopDelay) - except for the last loop
             if loop_delay_ms > 0 and delay_frames_per_loop > 0 and image_sequences and loop_idx < loops_needed - 1:
                 # Create black frame with same dimensions
-                height = len(image_sequences[0])
-                width = len(image_sequences[0][0])
-                black_frame = [[[0, 0, 0] for _ in range(width)] for _ in range(height)]
+                black_frame = [[[0, 0, 0] for _ in range(image_width)] for _ in range(image_height)]
                 
                 for _ in range(delay_frames_per_loop):
                     frames.append(black_frame)
@@ -157,8 +209,16 @@ def create_sequence_from_config(directory: str, output_path: str):
     else:
         # Finite loop
         print(f"Creating sequence with {loop_count} loops")
+        if countdown_enabled:
+            print("Countdown frames enabled: 4 seconds per loop (red, yellow, green, black)")
         
-        for _ in range(loop_count):
+        for loop_idx in range(loop_count):
+            # Add countdown frames at the beginning of each loop
+            if countdown_enabled:
+                countdown_frames = create_countdown_frames()
+                frames.extend(countdown_frames)
+            
+            # Add the actual image sequence
             frames.extend(image_sequences)
             
             # Add delay frames (black frames for loopDelay)
@@ -166,9 +226,7 @@ def create_sequence_from_config(directory: str, output_path: str):
                 delay_frames = int((loop_delay_ms / 1000) / frame_duration)
                 if delay_frames > 0 and image_sequences:
                     # Create black frame with same dimensions
-                    height = len(image_sequences[0])
-                    width = len(image_sequences[0][0])
-                    black_frame = [[[0, 0, 0] for _ in range(width)] for _ in range(height)]
+                    black_frame = [[[0, 0, 0] for _ in range(image_width)] for _ in range(image_height)]
                     
                     for _ in range(delay_frames):
                         frames.append(black_frame)
