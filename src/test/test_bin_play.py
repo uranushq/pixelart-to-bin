@@ -97,8 +97,16 @@ def play_bin_file(file_path: str, scale_factor: int = 20, loop: bool = True):
         # Calculate frame delay for target FPS
         frame_delay = 0.2
         
-        # Create window
-        cv2.namedWindow('Bin File Player', cv2.WINDOW_NORMAL)
+        # Calculate display size
+        display_width = width * scale_factor
+        display_height = height * scale_factor
+        
+        # Create window with specific size
+        window_name = 'Bin File Player'
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(window_name, display_width, display_height)
+        
+        print(f"Display size: {display_width}x{display_height} (original: {width}x{height})")
         
         frame_index = 0
         paused = False
