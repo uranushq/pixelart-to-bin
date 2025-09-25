@@ -4,7 +4,7 @@ import random
 from typing import List, Tuple
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.utils.bin_maker import bin_maker
-from src.utils.color_board_utils import create_solid_color_frames, validate_rgb
+from src.utils.color_board_utils import create_solid_color_frames, validate_rgb, create_rainbow_frames, create_sequential_pixel_frames, apply_luminance, create_sequential_fill_frames
 
 
 import argparse
@@ -65,9 +65,18 @@ def create_psyche_frames(r: int, g: int, b: int, width: int, height: int,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create a solid color board bin file.")
-    parser.add_argument("r", type=int, help="Red value (0-255)")
-    parser.add_argument("g", type=int, help="Green value (0-255)")
-    parser.add_argument("b", type=int, help="Blue value (0-255)")
+    parser.add_argument("--rainbow", action="store_true", help="Create beautiful rainbow color animation")
+    parser.add_argument("--sequential", action="store_true", help="Create sequential pixel lighting with rainbow colors")
+    parser.add_argument("--sequential-fill", action="store_true", help="Create sequential scan + fill + off pattern with rainbow colors")
+    parser.add_argument("--off-seconds", type=float, default=1.0, help="Duration of off state between colors for rainbow mode (seconds)")
+    parser.add_argument("--luminance", type=float, default=1.0, help="Luminance ratio for brightness control (0.0-1.0, default: 1.0)")
+    parser.add_argument("--frames-per-pixel", type=int, default=3, help="Number of frames each pixel stays on in sequential mode (default: 3)")
+    parser.add_argument("--cycles", type=int, default=10, help="Number of cycles to repeat in sequential mode (default: 10)")
+    parser.add_argument("--fill-seconds", type=float, default=2.0, help="Duration to keep board filled in sequential-fill mode (default: 2.0)")
+    parser.add_argument("--off-seconds-fill", type=float, default=2.0, help="Duration to keep board off in sequential-fill mode (default: 2.0)")
+    parser.add_argument("r", type=int, nargs='?', default=255, help="Red value (0-255), ignored in rainbow mode")
+    parser.add_argument("g", type=int, nargs='?', default=0, help="Green value (0-255), ignored in rainbow mode")
+    parser.add_argument("b", type=int, nargs='?', default=0, help="Blue value (0-255), ignored in rainbow mode")
     parser.add_argument("-l", "--length", type=int, default=None, help="Frame length (number of frames)")
     parser.add_argument("-t", "--time", type=float, default=None, help="Duration in seconds (overrides length if set)")
     parser.add_argument("--fps", type=int, default=5, help="Frames per second (default: 5)")
@@ -78,7 +87,142 @@ if __name__ == "__main__":
     parser.add_argument("--min-interval", type=float, default=1.0, help="Minimum interval for psyche effect (seconds)")
     parser.add_argument("--max-interval", type=float, default=3.0, help="Maximum interval for psyche effect (seconds)")
     parser.add_argument("--fade", type=float, default=0.3, help="Fade duration for psyche effect (seconds)")
+    parser.add_argument("--rainbow-steps", type=int, default=60, help="Number of rainbow color steps (more = smoother transition)")
     args = parser.parse_args()
+
+    # Validate luminance
+    if not (0.0 <= args.luminance <= 1.0):
+        print("Error: Luminance must be between 0.0 and 1.0")
+        sys.exit(1)
+
+    # Sequential-fill mode handling
+    if args.sequential_fill:
+        fps = args.fps
+        width = args.width
+        height = args.height
+        
+        frames = create_sequential_fill_frames(
+            width=width,
+            height=height,
+            frames_per_pixel=args.frames_per_pixel,
+            luminance=args.luminance,
+            cycles=args.cycles,
+            fill_seconds=args.fill_seconds,
+            off_seconds=args.off_seconds_fill,
+            fps=fps
+        )
+        
+        output_path = f"test_color_board_sequential_fill_{width}x{height}_luminance{args.luminance}_fill{args.fill_seconds}s_off{args.off_seconds_fill}s_cycles{args.cycles}.bin"
+        
+        # Save using bin_maker (includes add_metadata with header)
+        bin_maker(frames, output_path, fps)
+        
+        scan_duration = (width * height * args.frames_per_pixel) / fps
+        cycle_duration = scan_duration + args.fill_seconds + args.off_seconds_fill
+        
+        print(f"✅ Sequential-fill color board saved to: {output_path}")
+        print(f"   Animation: Sequential scan → Fill → Off pattern")
+        print(f"   Pattern per cycle:")
+        print(f"     1. Scan pixels sequentially ({scan_duration:.1f}s)")
+        print(f"     2. Fill entire board with color ({args.fill_seconds}s)")
+        print(f"     3. Turn off entire board ({args.off_seconds_fill}s)")
+        print(f"   Rainbow colors: 7 fixed colors cycling")
+        print(f"   Frames per pixel: {args.frames_per_pixel}")
+        print(f"   Cycles: {args.cycles} (each cycle = {cycle_duration:.1f}s)")
+        print(f"   Luminance: {args.luminance} ({int(args.luminance*100)}% brightness)")
+        print(f"   Size: {width}x{height}")
+        print(f"   Total frames: {len(frames)}")
+        print(f"   FPS: {fps}")
+        print(f"   Duration: {len(frames)/fps:.1f} seconds")
+        exit(0)
+
+    # Sequential pixel mode handling
+    if args.sequential:
+        fps = args.fps
+        width = args.width
+        height = args.height
+        
+        frames = create_sequential_pixel_frames(
+            width=width,
+            height=height,
+            frames_per_pixel=args.frames_per_pixel,
+            luminance=args.luminance,
+            steps=args.rainbow_steps,
+            cycles=args.cycles
+        )
+        
+        output_path = f"test_color_board_sequential_{width}x{height}_luminance{args.luminance}_fperpx{args.frames_per_pixel}_cycles{args.cycles}.bin"
+        
+        # Save using bin_maker (includes add_metadata with header)
+        bin_maker(frames, output_path, fps)
+        
+        print(f"✅ Sequential pixel color board saved to: {output_path}")
+        print(f"   Animation: Sequential pixel lighting with rainbow colors")
+        print(f"   Pixel order: (0,0) → (0,1) → (0,2) → ... → ({height-1},{width-1})")
+        print(f"   Behavior: Only ONE pixel lit at a time")
+        print(f"   Color cycling: Same color per cycle, changes between cycles") 
+        print(f"   Rainbow colors: 7 fixed colors (Red→Orange→Yellow→Green→Blue→Indigo→Violet)")
+        print(f"   Color repetition: Cycles {args.cycles} uses colors in order: {[f'Color {(i%7)+1}' for i in range(min(args.cycles, 7))]}")
+        print(f"   Frames per pixel: {args.frames_per_pixel}")
+        print(f"   Cycles: {args.cycles} (each cycle = {width*height} pixels)")
+        print(f"   Luminance: {args.luminance} ({int(args.luminance*100)}% brightness)")
+        print(f"   Size: {width}x{height}")
+        print(f"   Total frames: {len(frames)}")
+        print(f"   FPS: {fps}")
+        print(f"   Duration: {len(frames)/fps:.1f} seconds")
+        exit(0)
+
+    # Rainbow mode handling
+    if args.rainbow:
+        # Set default values if not specified
+        if args.time is None and args.length is None:
+            print("Warning: No duration specified for rainbow mode. Using default 30 seconds.")
+            args.time = 30.0
+        
+        fps = args.fps
+        width = args.width
+        height = args.height
+        
+        # Determine frame_count for rainbow
+        if args.time is not None:
+            frame_count = int(round(args.time * fps))
+        elif args.length is not None:
+            frame_count = args.length
+        else:
+            frame_count = 30 * fps  # default 30 seconds
+        
+        frames = create_rainbow_frames(
+            width=width,
+            height=height,
+            total_duration=frame_count/fps,
+            fps=fps,
+            off_seconds=args.off_seconds,
+            steps=args.rainbow_steps
+        )
+        
+        # Apply luminance to all frames if not 1.0
+        if args.luminance != 1.0:
+            for frame_idx in range(len(frames)):
+                for row in range(height):
+                    for col in range(width):
+                        r, g, b = frames[frame_idx][row][col]
+                        frames[frame_idx][row][col] = list(apply_luminance(r, g, b, args.luminance))
+        
+        output_path = f"test_color_board_rainbow_off{args.off_seconds}s_luminance{args.luminance}.bin"
+        
+        # Save using bin_maker (includes add_metadata with header)
+        bin_maker(frames, output_path, fps)
+        
+        print(f"✅ Rainbow color board saved to: {output_path}")
+        print(f"   Animation: Beautiful rainbow from red to violet")
+        print(f"   Rainbow steps: {args.rainbow_steps} (smoother with more steps)")
+        print(f"   Off duration: {args.off_seconds} seconds between color cycles")
+        print(f"   Luminance: {args.luminance} ({int(args.luminance*100)}% brightness)")
+        print(f"   Size: {width}x{height}")
+        print(f"   Frames: {len(frames)}")
+        print(f"   FPS: {fps}")
+        print(f"   Duration: {len(frames)/fps:.1f} seconds")
+        exit(0)
 
     r = args.r
     g = args.g
@@ -88,6 +232,9 @@ if __name__ == "__main__":
     if not validate_rgb(r, g, b):
         print("Error: RGB values must be between 0 and 255")
         sys.exit(1)
+    
+    # Apply luminance to RGB values
+    r, g, b = apply_luminance(r, g, b, args.luminance)
 
     fps = args.fps
     width = args.width
@@ -119,7 +266,7 @@ if __name__ == "__main__":
             fade_duration=args.fade
         )
         
-        output_path = f"test_color_board_psyche_R{r}_G{g}_B{b}.bin"
+        output_path = f"test_color_board_psyche_R{r}_G{g}_B{b}_luminance{args.luminance}.bin"
         print(f"   Animation info: Psychedelic effect with {args.min_interval}-{args.max_interval}s intervals")
         print(f"   Fade duration: {args.fade}s")
         
@@ -163,12 +310,12 @@ if __name__ == "__main__":
         while len(frames) < frame_count:
             frames.append(create_solid_color_frames(0, 0, 0, width, height, 1)[0])
             
-        output_path = f"test_color_board_dissolve_R{r}_G{g}_B{b}.bin"
+        output_path = f"test_color_board_dissolve_R{r}_G{g}_B{b}_luminance{args.luminance}.bin"
         print(f"   Animation info: {total_cycles} cycles of 5-second dissolve (2s fade-in, 1s highlight, 2s fade-out)")
     else:
         # 단색 보드
         frames = create_solid_color_frames(r, g, b, width, height, frame_count)
-        output_path = f"test_color_board_R{r}_G{g}_B{b}.bin"
+        output_path = f"test_color_board_R{r}_G{g}_B{b}_luminance{args.luminance}.bin"
 
     # Save using bin_maker (includes add_metadata with header)
     bin_maker(frames, output_path, fps)
@@ -178,6 +325,7 @@ if __name__ == "__main__":
         print(f"   Gradient from (0,0,0) to ({r}, {g}, {b})")
     else:
         print(f"   RGB: ({r}, {g}, {b})")
+    print(f"   Luminance: {args.luminance} ({int(args.luminance*100)}% brightness)")
     print(f"   Size: {width}x{height}")
     print(f"   Frames: {len(frames)}")
     print(f"   FPS: {fps}")
