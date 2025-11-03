@@ -7,7 +7,8 @@ import glob
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.utils.image2matrix import image_to_matrix
-from src.utils.bin_maker import bin_maker
+from src.utils.bin_maker import bin_maker, bin_maker_with_tiles
+from src.utils.scattering_animation import create_scattering_animation
 
 
 def load_config(config_path: str) -> Dict[str, Any]:
@@ -73,19 +74,78 @@ def get_image_files_in_directory(directory: str) -> List[str]:
     return sorted(filtered_files, key=natural_sort_key)
 
 
-def create_sequence_from_config(directory: str, output_path: str):
+def create_sequence_from_config(directory: str, output_path: str, split_tiles: bool = True, scattering_mode: bool = False, scattering_duration: float = 5.0, scattering_transition: float = 0.5, scattering_fps: int = 15):
     """
     Create binary sequence from images using config.json settings.
     
     Args:
         directory: Directory containing images and config.json
-        output_path: Output binary file path
+        output_path: Output binary file path (base path without extension)
+        split_tiles: If True, save both full board and 4x4 tiles. If False, save only full board.
+        scattering_mode: If True, create scattering animation from _1.png file only
+        scattering_duration: Duration to hold the image in scattering mode (seconds)
+        scattering_transition: Duration of appear/disappear transitions (seconds)
+        scattering_fps: FPS for scattering animation
     """
     config_path = os.path.join(directory, 'config.json')
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"config.json not found in {directory}")
     
     # Load configuration
+    config = load_config(config_path)
+    
+    # Handle scattering mode separately
+    if scattering_mode:
+        print("🎆 Scattering animation mode enabled")
+        print(f"   Duration: {scattering_duration}s")
+        print(f"   Transition: {scattering_transition}s")
+        print(f"   FPS: {scattering_fps}")
+        
+        # Get all image files in the directory
+        image_files = get_image_files_in_directory(directory)
+        
+        if not image_files:
+            raise FileNotFoundError(f"No image files found in {directory}")
+        
+        print(f"   Found {len(image_files)} image file(s)")
+        for img_file in image_files:
+            print(f"     - {os.path.basename(img_file)}")
+        
+        # Create scattering animation for each image
+        all_frames = []
+        
+        for idx, image_file in enumerate(image_files):
+            print(f"\n   Processing {idx + 1}/{len(image_files)}: {os.path.basename(image_file)}")
+            
+            # Load the image
+            img = Image.open(image_file).convert("RGB")
+            matrix = image_to_matrix(img)
+            
+            # Create scattering animation for this image
+            frames = create_scattering_animation(
+                target_image=matrix,
+                appear_duration=scattering_transition,
+                hold_duration=scattering_duration,
+                disappear_duration=scattering_transition,
+                fps=scattering_fps
+            )
+            
+            all_frames.extend(frames)
+            print(f"     Generated {len(frames)} frames for this image")
+        
+        print(f"\n   Total frames: {len(all_frames)}")
+        print(f"   Total duration: {len(all_frames) / scattering_fps:.1f}s")
+        
+        # Save using appropriate bin_maker function
+        if split_tiles:
+            base_path = output_path.replace('.bin', '')
+            bin_maker_with_tiles(all_frames, base_path, scattering_fps)
+        else:
+            bin_maker(all_frames, output_path, scattering_fps)
+        
+        return
+    
+    # Normal mode (existing logic)
     config = load_config(config_path)
     loop_count = config.get('loop', -1)
     loop_delay_ms = config.get('loopDelay', 1000)
@@ -234,8 +294,13 @@ def create_sequence_from_config(directory: str, output_path: str):
     # Calculate FPS (frames per second)
     fps = int(1 / frame_duration)  # 5 FPS for 0.2 seconds per frame
     
-    # Save using bin_maker
-    bin_maker(frames, output_path, fps)
+    # Save using appropriate bin_maker function
+    if split_tiles:
+        # Remove .bin extension if present to get base path
+        base_path = output_path.replace('.bin', '')
+        bin_maker_with_tiles(frames, base_path, fps)
+    else:
+        bin_maker(frames, output_path, fps)
     
     total_duration = len(frames) * frame_duration
     print(f"Total sequence duration: {total_duration:.1f} seconds ({len(frames)} frames)")

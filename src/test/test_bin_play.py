@@ -95,7 +95,7 @@ def play_bin_file(file_path: str, scale_factor: int = 20, loop: bool = True):
             print(f"Warning: Header says {total_frames} frames, but file only contains {effective_frames} frames")
         
         # Calculate frame delay for target FPS
-        frame_delay = 0.015
+        frame_delay = 0.03
         
         # Calculate display size
         display_width = width * scale_factor
