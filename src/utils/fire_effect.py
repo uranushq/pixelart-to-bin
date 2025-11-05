@@ -493,17 +493,19 @@ def create_background_scattering(
     image_matrix: List[List[List[int]]],
     bg_color: Tuple[int, int, int],
     duration: float,
-    fps: int
+    fps: int,
+    appear: bool = True
 ) -> List[List[List[List[int]]]]:
     """
     Fill background with scattering effect while preserving foreground image.
-    Background pixels (black in image) gradually fill with the specified color.
+    Background pixels (black in image) gradually fill or disappear with the specified color.
     
     Args:
         image_matrix: The foreground image (non-black pixels are preserved)
         bg_color: RGB color for background
         duration: Duration of scattering in seconds
         fps: Frames per second
+        appear: True to appear (0% to 100%), False to disappear (100% to 0%)
         
     Returns:
         List of frames with background scattering effect
@@ -515,6 +517,8 @@ def create_background_scattering(
     
     # Intensity levels for scattering: 0%, 20%, 40%, 60%, 80%, 100%
     intensity_levels = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    if not appear:
+        intensity_levels = intensity_levels[::-1]  # Reverse for disappearing
     
     # Create random scattering sequence for each background pixel
     pixel_sequences = {}
@@ -552,7 +556,7 @@ def create_background_scattering(
                     if next_level_idx > current_level_idx:
                         current_level_idx = next_level_idx
                 
-                # Ensure reaches 100%
+                # Ensure reaches final state (100% or 0%)
                 while len(sequence) < total_frames:
                     sequence.append(intensity_levels[-1])
                 
