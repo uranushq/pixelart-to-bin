@@ -158,8 +158,8 @@ def create_scattering_animation(
     # Create black frame
     black_frame = [[[0, 0, 0] for _ in range(width)] for _ in range(height)]
     
-    # Black frame at start (1 second)
-    black_frame_count = fps  # 1 second
+    # Black frame at start (0.3 seconds instead of 1 second)
+    black_frame_count = int(fps * 0.3)  # 0.3 seconds
     for _ in range(black_frame_count):
         frames.append(black_frame)
     

@@ -16,75 +16,58 @@ def create_psyche_effect(
     density: float = 0.5
 ) -> List[List[List[List[int]]]]:
     """
-    Create a psyche effect where tiles (4x4 blocks) randomly blink.
-    Each tile blinks as a complete unit (all 16 pixels on/off together).
+    Create a psyche effect where each pixel randomly blinks independently.
+    Each pixel has its own random blinking pattern.
     
     Args:
-        color: RGB color tuple for the tiles
-        width: Board width in pixels (must be multiple of 4)
-        height: Board height in pixels (must be multiple of 4)
+        color: RGB color tuple for the pixels
+        width: Board width in pixels
+        height: Board height in pixels
         duration: Total duration in seconds
         fps: Frames per second
         speed: Blink speed multiplier (higher = faster blinking, default: 1.0)
-        density: Percentage of tiles that are ON at any given time (0.0-1.0, default: 0.5)
+        density: Percentage of pixels that are ON at any given time (0.0-1.0, default: 0.5)
         
     Returns:
         List of frames with psyche effect
     """
-    if width % 4 != 0 or height % 4 != 0:
-        raise ValueError("Width and height must be multiples of 4")
-    
     total_frames = int(duration * fps)
     frames = []
     
-    # Calculate number of tiles
-    tiles_horizontal = width // 4
-    tiles_vertical = height // 4
-    total_tiles = tiles_horizontal * tiles_vertical
-    
-    # Create tile state array (each tile has independent blinking pattern)
-    tile_patterns = []
-    for _ in range(total_tiles):
-        # Random blink frequency (frames between state changes)
-        base_frequency = random.randint(3, 10)
-        frequency = max(1, int(base_frequency / speed))
-        
-        # Random phase offset
-        phase_offset = random.randint(0, frequency - 1)
-        
-        tile_patterns.append({
-            'frequency': frequency,
-            'phase': phase_offset,
-            'on_probability': density  # Use density parameter
-        })
+    # Create pixel state array (each pixel has independent blinking pattern)
+    pixel_patterns = []
+    for y in range(height):
+        row_patterns = []
+        for x in range(width):
+            # Random blink frequency (frames between state changes)
+            base_frequency = random.randint(3, 10)
+            frequency = max(1, int(base_frequency / speed))
+            
+            # Random phase offset
+            phase_offset = random.randint(0, frequency - 1)
+            
+            row_patterns.append({
+                'frequency': frequency,
+                'phase': phase_offset,
+                'on_probability': density
+            })
+        pixel_patterns.append(row_patterns)
     
     # Generate frames
     for frame_idx in range(total_frames):
-        # Determine state of each tile for this frame
-        tile_states = []
-        for tile_idx in range(total_tiles):
-            pattern = tile_patterns[tile_idx]
-            
-            # Calculate if this tile should be on or off this frame
-            cycle_position = (frame_idx + pattern['phase']) % pattern['frequency']
-            
-            # Tile is on if within the "on" portion of its cycle
-            is_on = cycle_position < pattern['frequency'] * pattern['on_probability']
-            
-            tile_states.append(is_on)
-        
-        # Build frame based on tile states
         frame = []
         for y in range(height):
             row = []
             for x in range(width):
-                # Determine which tile this pixel belongs to
-                tile_x = x // 4
-                tile_y = y // 4
-                tile_idx = tile_y * tiles_horizontal + tile_x
+                pattern = pixel_patterns[y][x]
                 
-                # All pixels in the same tile have the same state
-                if tile_states[tile_idx]:
+                # Calculate if this pixel should be on or off this frame
+                cycle_position = (frame_idx + pattern['phase']) % pattern['frequency']
+                
+                # Pixel is on if within the "on" portion of its cycle
+                is_on = cycle_position < pattern['frequency'] * pattern['on_probability']
+                
+                if is_on:
                     pixel = [color[0], color[1], color[2]]
                 else:
                     pixel = [0, 0, 0]
@@ -110,23 +93,21 @@ def create_full_on_then_psyche(
     """
     Create animation: black → psyche effect → black
     (No full-on phase, starts with psyche effect immediately)
+    Each pixel blinks independently for full psyche effect.
     
     Args:
         color: RGB color tuple
-        width: Board width in pixels (must be multiple of 4)
-        height: Board height in pixels (must be multiple of 4)
+        width: Board width in pixels
+        height: Board height in pixels
         full_on_duration: IGNORED - kept for API compatibility
         psyche_duration: Duration of psyche effect in seconds
         fps: Frames per second
         speed: Psyche blink speed multiplier
-        density: Percentage of tiles ON at any time (0.0-1.0)
+        density: Percentage of pixels ON at any time (0.0-1.0)
         
     Returns:
         List of all frames
     """
-    if width % 4 != 0 or height % 4 != 0:
-        raise ValueError("Width and height must be multiples of 4")
-    
     all_frames = []
     
     # Create black frame
@@ -139,7 +120,7 @@ def create_full_on_then_psyche(
     for _ in range(fps):
         all_frames.append(black_frame)
     
-    # 2. Psyche effect (no full-on phase)
+    # 2. Psyche effect (no full-on phase, each pixel blinks independently)
     psyche_frames = create_psyche_effect(color, width, height, psyche_duration, fps, speed, density)
     all_frames.extend(psyche_frames)
     

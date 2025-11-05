@@ -148,7 +148,7 @@ def create_sequence_from_config(directory: str, output_path: str, split_tiles: b
     # Normal mode (existing logic)
     config = load_config(config_path)
     loop_count = config.get('loop', -1)
-    loop_delay_ms = config.get('loopDelay', 1000)
+    loop_delay_ms = config.get('loopDelay', 300)  # Reduced from 1000ms to 300ms (0.3 seconds)
     countdown_enabled = config.get('countDown', True)
     
     # Get all image files
