@@ -91,8 +91,7 @@ def create_full_on_then_psyche(
     density: float = 0.5
 ) -> List[List[List[List[int]]]]:
     """
-    Create animation: black → psyche effect → black
-    (No full-on phase, starts with psyche effect immediately)
+    Create animation: psyche effect loop (no black frames)
     Each pixel blinks independently for full psyche effect.
     
     Args:
@@ -108,27 +107,10 @@ def create_full_on_then_psyche(
     Returns:
         List of all frames
     """
-    all_frames = []
-    
-    # Create black frame
-    black_frame = [
-        [[0, 0, 0] for _ in range(width)]
-        for _ in range(height)
-    ]
-    
-    # 1. Black frame (1 second)
-    for _ in range(fps):
-        all_frames.append(black_frame)
-    
-    # 2. Psyche effect (no full-on phase, each pixel blinks independently)
+    # Only psyche effect, no black frames
     psyche_frames = create_psyche_effect(color, width, height, psyche_duration, fps, speed, density)
-    all_frames.extend(psyche_frames)
     
-    # 3. Black frame (1 second)
-    for _ in range(fps):
-        all_frames.append(black_frame)
-    
-    return all_frames
+    return psyche_frames
 
 
 if __name__ == "__main__":
