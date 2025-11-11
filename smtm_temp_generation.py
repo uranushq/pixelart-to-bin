@@ -361,112 +361,11 @@ def mode3_letters_sequence(duration: float, fps: int, output_path: str):
     all_frames.extend(twelve_appear)
     print(f"   12 text scattering (bottom-up): {len(twelve_appear)} frames (0.5s)")
     
-    # 8. Hold text for 0.3 seconds
-    text_hold_frames = int(0.3 * fps)
+    # 8. Hold text for duration + 3 seconds
+    text_hold_frames = int((duration + 3.0) * fps)
     for _ in range(text_hold_frames):
         all_frames.append(twelve_matrix)
-    print(f"   Text hold: {text_hold_frames} frames (0.3s)")
-    
-    # 9. Yellow background rises from bottom (0.5s)
-    yellow_bg_color = (180, 180, 0)
-    yellow_bg_fill = create_background_scattering_from_bottom(width, height, yellow_bg_color, twelve_matrix, 0.5, fps)
-    all_frames.extend(yellow_bg_fill)
-    print(f"   Yellow background rising from bottom: {len(yellow_bg_fill)} frames (0.5s)")
-    
-    # Hold yellow background briefly (0.5s)
-    twelve_yellow_bg = add_solid_background(twelve_matrix, yellow_bg_color)
-    yellow_hold_frames = int(0.5 * fps)
-    for _ in range(yellow_hold_frames):
-        all_frames.append(twelve_yellow_bg)
-    print(f"   Yellow background hold: {yellow_hold_frames} frames (0.5s)")
-    
-    # 10. Fire rises while yellow disappears from bottom to top (1.0 second)
-    # Fire replaces yellow as it rises - yellow scatters away where fire appears
-    # Calculate flicker_zone_height based on image height (adaptive to different resolutions)
-    flicker_zone = max(2, height // 4)
-    fire_rise_frames = create_fire_rise_from_bottom(width, height, 1.0, fps, flicker_zone_height=flicker_zone)
-    
-    # Create scattering disappear pattern for each yellow pixel
-    import random
-    total_frames = len(fire_rise_frames)
-    yellow_scatter_patterns = {}
-    
-    for y in range(height):
-        for x in range(width):
-            # Only background pixels need scattering pattern
-            if twelve_matrix[y][x] == [0, 0, 0]:
-                # Random disappear timing for scattering effect
-                disappear_start_frame = random.randint(0, total_frames - 1)
-                disappear_duration = random.randint(3, 8)
-                yellow_scatter_patterns[(x, y)] = {
-                    'start': disappear_start_frame,
-                    'duration': disappear_duration
-                }
-    
-    yellow_fire_combined = []
-    
-    for frame_idx in range(total_frames):
-        frame = []
-        for y in range(height):
-            row = []
-            for x in range(width):
-                text_pixel = twelve_matrix[y][x]
-                fire_pixel = fire_rise_frames[frame_idx][y][x]
-                
-                # Priority: text > fire > yellow (with scattering)
-                if text_pixel[0] > 0 or text_pixel[1] > 0 or text_pixel[2] > 0:
-                    # Text always on top
-                    row.append(text_pixel)
-                elif fire_pixel[0] > 0 or fire_pixel[1] > 0 or fire_pixel[2] > 0:
-                    # Fire where it exists
-                    row.append(fire_pixel)
-                else:
-                    # Yellow background with scattering disappear effect
-                    pattern = yellow_scatter_patterns.get((x, y))
-                    if pattern:
-                        # Calculate if this pixel should show yellow based on scattering
-                        frames_since_start = frame_idx - pattern['start']
-                        
-                        if frames_since_start < 0:
-                            # Not started disappearing yet - full yellow
-                            row.append([yellow_bg_color[0], yellow_bg_color[1], yellow_bg_color[2]])
-                        elif frames_since_start < pattern['duration']:
-                            # Scattering phase - random on/off with decreasing probability
-                            progress = frames_since_start / pattern['duration']
-                            show_probability = 1.0 - progress
-                            
-                            if random.random() < show_probability:
-                                # Show yellow with varying intensity
-                                intensity = random.choice([0.4, 0.6, 0.8, 1.0])
-                                r = int(yellow_bg_color[0] * intensity)
-                                g = int(yellow_bg_color[1] * intensity)
-                                b = int(yellow_bg_color[2] * intensity)
-                                row.append([r, g, b])
-                            else:
-                                row.append([0, 0, 0])
-                        else:
-                            # Disappeared - black
-                            row.append([0, 0, 0])
-                    else:
-                        # Shouldn't happen, but default to yellow
-                        row.append([yellow_bg_color[0], yellow_bg_color[1], yellow_bg_color[2]])
-            frame.append(row)
-        yellow_fire_combined.append(frame)
-    
-    all_frames.extend(yellow_fire_combined)
-    print(f"   Fire rising (yellow scattering away): {len(yellow_fire_combined)} frames (1.0s)")
-    
-    # 11. Hold 12 with flickering fire (duration seconds)
-    fire_flicker_frames = create_fire_flickering(width, height, duration, fps, flicker_zone_height=flicker_zone)
-    twelve_with_fire_flicker = overlay_image_on_fire(twelve_matrix, fire_flicker_frames)
-    all_frames.extend(twelve_with_fire_flicker)
-    print(f"   12 with flickering fire: {len(twelve_with_fire_flicker)} frames ({duration}s)")
-    
-    # 12. Continue flickering fire for 3 more seconds
-    fire_flicker_hold = create_fire_flickering(width, height, 3.0, fps, flicker_zone_height=flicker_zone)
-    twelve_with_fire_hold = overlay_image_on_fire(twelve_matrix, fire_flicker_hold)
-    all_frames.extend(twelve_with_fire_hold)
-    print(f"   Final state hold (flickering): {len(twelve_with_fire_hold)} frames (3.0s)")
+    print(f"   Text hold: {text_hold_frames} frames ({duration + 3.0}s)")
     
     # 13. Black frame (3 seconds)
     black_ending_frames = int(3 * fps)
