@@ -29,7 +29,7 @@ def parse_color(color_str: str) -> Tuple[int, int, int]:
     # Named colors
     named_colors = {
         'black': (0, 0, 0),
-        'white': (255, 255, 255),
+        'white': (200, 200, 200),
         'red': (255, 0, 0),
         'green': (0, 255, 0),
         'blue': (0, 0, 255),

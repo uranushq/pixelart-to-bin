@@ -175,7 +175,7 @@ def create_fire_flickering(
     duration: float,
     fps: int,
     fire_color: Tuple[int, int, int] = (255, 140, 0),
-    flicker_zone_height: int = 6
+    flicker_zone_height: int = 2
 ) -> List[List[List[List[int]]]]:
     """
     Create realistic fire flickering effect.
@@ -426,6 +426,7 @@ def create_background_scattering_from_bottom(
     """
     Fill background with color from bottom to top using scattering effect.
     Image (white text) stays on top, background fills underneath.
+    Bottom pixels fill first, progressing upward.
     
     Args:
         width: Board width in pixels
@@ -441,13 +442,17 @@ def create_background_scattering_from_bottom(
     total_frames = int(duration * fps)
     frames = []
     
-    # Intensity levels for scattering: 0%, 20%, 40%, 60%, 80%, 100%
-    intensity_levels = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    # Pre-calculate fill line progression from bottom to top
+    # At frame 0: fill_line = height (nothing filled)
+    # At last frame: fill_line = 0 (everything filled except text)
     
     for frame_idx in range(total_frames):
-        # Determine current fill height (0 to height)
+        # Progress from 0 (start) to 1 (complete)
         progress = frame_idx / max(1, total_frames - 1)
-        current_fill_line = int(height * (1.0 - progress))  # Starts at height, goes to 0
+        
+        # Fill line descends from top to bottom (higher y values first)
+        # fill_line represents the dividing line between filled and empty
+        current_fill_line = int(height * (1.0 - progress))
         
         frame = []
         for y in range(height):
@@ -456,31 +461,15 @@ def create_background_scattering_from_bottom(
                 # Check if image has content at this position
                 image_pixel = image_matrix[y][x]
                 
-                # If image pixel is not black, use it
+                # If image pixel is not black, use it (text always on top)
                 if image_pixel != [0, 0, 0]:
                     row.append(image_pixel)
                 else:
-                    # Fill background based on position and progress
-                    if y > current_fill_line + 3:
-                        # Fully filled area - solid background
+                    # For background pixels
+                    # Fill if y >= current_fill_line (bottom area)
+                    if y >= current_fill_line:
                         row.append([bg_color[0], bg_color[1], bg_color[2]])
-                    elif y > current_fill_line - 3:
-                        # Transition zone - scattering effect
-                        # Determine intensity level based on distance from fill line
-                        dist_from_line = y - current_fill_line
-                        if dist_from_line > 0:
-                            # Below line - higher probability
-                            prob = 0.5 + (dist_from_line / 6) * 0.5
-                        else:
-                            # Above line - lower probability
-                            prob = 0.5 - (abs(dist_from_line) / 6) * 0.5
-                        
-                        if random.random() < prob:
-                            row.append([bg_color[0], bg_color[1], bg_color[2]])
-                        else:
-                            row.append([0, 0, 0])
                     else:
-                        # Empty area above fill line
                         row.append([0, 0, 0])
             
             frame.append(row)

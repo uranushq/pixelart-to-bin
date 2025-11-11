@@ -94,20 +94,22 @@ def mode1_smtm_to_12(duration: float, fps: int, output_path: str):
     print(f"   Wipe to 12: {len(wipe_frames)} frames")
     
     # 5. Fire rises from bottom to middle (1.0 second)
-    fire_rise_frames = create_fire_rise_from_bottom(width, height, 1.0, fps, flicker_zone_height=8)
+    # Calculate flicker_zone_height based on image height (adaptive to different resolutions)
+    flicker_zone = max(2, height // 4)
+    fire_rise_frames = create_fire_rise_from_bottom(width, height, 1.0, fps, flicker_zone_height=flicker_zone)
     # Overlay 12.png on rising fire
     twelve_with_fire_rise = overlay_image_on_fire(twelve_matrix, fire_rise_frames)
     all_frames.extend(twelve_with_fire_rise)
     print(f"   Fire rising: {len(twelve_with_fire_rise)} frames")
     
     # 6. Hold 12.png with flickering fire background (duration seconds)
-    fire_flicker_frames = create_fire_flickering(width, height, duration, fps, flicker_zone_height=8)
+    fire_flicker_frames = create_fire_flickering(width, height, duration, fps, flicker_zone_height=flicker_zone)
     twelve_with_fire_flicker = overlay_image_on_fire(twelve_matrix, fire_flicker_frames)
     all_frames.extend(twelve_with_fire_flicker)
     print(f"   12 with flickering fire: {len(twelve_with_fire_flicker)} frames")
     
     # 7. Continue flickering fire for 3 more seconds
-    fire_flicker_hold = create_fire_flickering(width, height, 3.0, fps, flicker_zone_height=8)
+    fire_flicker_hold = create_fire_flickering(width, height, 3.0, fps, flicker_zone_height=flicker_zone)
     twelve_with_fire_hold = overlay_image_on_fire(twelve_matrix, fire_flicker_hold)
     all_frames.extend(twelve_with_fire_hold)
     print(f"   Final state hold (flickering): {len(twelve_with_fire_hold)} frames (3.0s)")
@@ -380,7 +382,9 @@ def mode3_letters_sequence(duration: float, fps: int, output_path: str):
     
     # 10. Fire rises while yellow disappears from bottom to top (1.0 second)
     # Fire replaces yellow as it rises - yellow scatters away where fire appears
-    fire_rise_frames = create_fire_rise_from_bottom(width, height, 1.0, fps, flicker_zone_height=8)
+    # Calculate flicker_zone_height based on image height (adaptive to different resolutions)
+    flicker_zone = max(2, height // 4)
+    fire_rise_frames = create_fire_rise_from_bottom(width, height, 1.0, fps, flicker_zone_height=flicker_zone)
     
     # Create scattering disappear pattern for each yellow pixel
     import random
@@ -453,13 +457,13 @@ def mode3_letters_sequence(duration: float, fps: int, output_path: str):
     print(f"   Fire rising (yellow scattering away): {len(yellow_fire_combined)} frames (1.0s)")
     
     # 11. Hold 12 with flickering fire (duration seconds)
-    fire_flicker_frames = create_fire_flickering(width, height, duration, fps, flicker_zone_height=8)
+    fire_flicker_frames = create_fire_flickering(width, height, duration, fps, flicker_zone_height=flicker_zone)
     twelve_with_fire_flicker = overlay_image_on_fire(twelve_matrix, fire_flicker_frames)
     all_frames.extend(twelve_with_fire_flicker)
     print(f"   12 with flickering fire: {len(twelve_with_fire_flicker)} frames ({duration}s)")
     
     # 12. Continue flickering fire for 3 more seconds
-    fire_flicker_hold = create_fire_flickering(width, height, 3.0, fps, flicker_zone_height=8)
+    fire_flicker_hold = create_fire_flickering(width, height, 3.0, fps, flicker_zone_height=flicker_zone)
     twelve_with_fire_hold = overlay_image_on_fire(twelve_matrix, fire_flicker_hold)
     all_frames.extend(twelve_with_fire_hold)
     print(f"   Final state hold (flickering): {len(twelve_with_fire_hold)} frames (3.0s)")
