@@ -269,23 +269,24 @@ python ./src/main.py ./data/alpha --scattering --duration 5 --transition 0.5 --f
 
 코드: 재생기 [test_drone_sync.py](src/test/test_drone_sync.py) · 테스트 패턴 생성기 [make_rising_line_bin.py](src/generate/make_rising_line_bin.py)
 
-### 권장 테스트 패턴: 올라가는 가로줄 (30초)
+### 권장 테스트 패턴: 드론별 4줄 순환 (10회 반복)
 
-가로줄 하나가 **바닥에서 위로** 올라가는 30초 애니메이션입니다. 직선은 사람 눈이 "곧음"을 가장 민감하게 판별하는 패턴이라, 드론(타일)이 하나라도 동기에서 어긋나면 줄이 **계단처럼 끊겨** 한눈에 보입니다.
+전체 보드를 한 번 훑는 게 아니라, **각 드론(4x4)이 자기 4개 행 안에서** 가로줄을 아래→위로 순환시키고 이를 10번 반복합니다. 모든 드론이 동시에 같은 로컬 행을 켜야 하므로, 동기가 맞으면 보드 전체에 4px 간격의 가로줄들이 **일제히 같은 박자로** 오르내립니다. 드론 하나라도 어긋나면 그 4x4 칸만 줄 높이가 달라져 한눈에 보입니다.
 
 ```bash
-# 1) 테스트 패턴 bin 생성 (output/rising_line/ 에 full + 타일 60개, 900프레임 @ 30fps)
+# 1) 테스트 패턴 bin 생성 (output/rising_line/ 에 full + 타일 60개)
+#    기본: 4줄 × 10회 × 줄당 10프레임 = 400프레임 @ 30fps ≈ 13.3초
 python ./src/generate/make_rising_line_bin.py
 
-# 2) 동기 재생 — 완벽히 동기되면 곧은 가로줄이 매끄럽게 상승
+# 2) 동기 재생 — 모든 드론의 줄이 같은 박자로 오르내림(끊김 없음)
 python ./src/test/test_drone_sync.py ./output/rising_line
 
-# 3) desync 시연 — 드론마다 시작 오프셋/지터 → 줄이 계단처럼 끊겨 보임
-python ./src/test/test_drone_sync.py ./output/rising_line --offset 60
+# 3) desync 시연 — 드론마다 시작 오프셋/지터 → 4x4 칸별로 줄 높이가 어긋나 보임
+python ./src/test/test_drone_sync.py ./output/rising_line --offset 7
 python ./src/test/test_drone_sync.py ./output/rising_line --jitter 0.5
 ```
 
-생성기 옵션: `--width`(기본 40) `--height`(기본 24) `--duration`(기본 30초) `--fps`(기본 30) — 모두 가로/세로는 4의 배수.
+생성기 옵션: `--width`(기본 40) `--height`(기본 24) `--cycles`(드론별 4줄 순환 횟수, 기본 10) `--frames-per-row`(한 줄 유지 프레임=속도, 기본 10) `--fps`(기본 30) — 가로/세로는 4의 배수.
 
 ### 임의 시퀀스에 적용
 
